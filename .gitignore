@@ -5,3 +5,4 @@ __pycache__/
 # Ignore environment files
 .env
 .streamlit/secrets.toml
+add_users.py

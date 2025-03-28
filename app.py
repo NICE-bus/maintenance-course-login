@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import pandas as pd
+import hashlib
 
 # Load credentials from Streamlit secrets
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -406,38 +407,89 @@ def view_course_attendance():
         except Exception as e:
             st.error("Failed to fetch course attendance")
             print(f"Error: Failed to fetch course attendance - {e}")  # Debugging log
-            
+
+
+def hash_password(password):
+    """
+    Hashes a password using SHA-256.
+    """
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def login():
+    """
+    Displays a login page and authenticates the user.
+    """
+    st.title("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            # Hash the entered password
+            hashed_password = hash_password(password)
+            print(f"Debug: Entered username - {username}")  # Debugging log
+            print(f"Debug: Hashed password - {hashed_password}")  # Debugging log
+
+            # Query the Supabase Users table
+            response = supabase.table("Users").select("*").eq("username", username).eq("password", hashed_password).execute()
+            print(f"Debug: Supabase response - {response.data}")  # Debugging log
+
+            user = response.data
+
+            if user:
+                st.session_state["authenticated"] = True
+                st.session_state["current_page"] = "Sign Employee Into Course"  # Set default page after login
+                st.success("Login successful!")
+                st.rerun()  # Force a rerun to display authenticated content
+            else:
+                st.error("Invalid username or password.")
+        except Exception as e:
+            st.error("Failed to authenticate.")
+            print(f"Error: {e}")
+
 def main():
     """
     Main function that provides navigation between different pages of the app.
     """
-    st.sidebar.title("Navigation")
-    print("Debug: Sidebar loaded")  # Debugging log
-    option = st.sidebar.selectbox(
-        "Choose a page",
-        [
-            "View Employees",
-            "Sign Employee Into Course",
-            "View Employee History",
-            "View Course Attendance",
-        ],
-    )
-    print(f"Debug: Selected option - {option}")  # Debugging log
+    # Initialize session state for authentication and current page
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "Login"
 
-    if option == "View Employees":
-        print("Debug: Loading View Employees page")  # Debugging log
-        view_employees()
-    elif option == "Sign Employee Into Course":
-        print("Debug: Loading Sign Employee Into Course page")  # Debugging log
-        sign_employee_into_course()
-    elif option == "View Employee History":
-        print("Debug: Loading View Employee History page")  # Debugging log
-        view_employee_history()
-    elif option == "View Course Attendance":
-        print("Debug: Loading View Course Attendance page")  # Debugging log
-        view_course_attendance()
+    # Check if the user is authenticated
+    if not st.session_state["authenticated"]:
+        # Show the login page if the user is not authenticated
+        login()
+    else:
+        # Render the main app content
+        st.sidebar.title("Navigation")
+        option = st.sidebar.selectbox(
+            "Choose a page",
+            [
+                "View Employees",
+                "Sign Employee Into Course",
+                "View Employee History",
+                "View Course Attendance",
+            ],
+            index=["View Employees", "Sign Employee Into Course", "View Employee History", "View Course Attendance"].index(
+                st.session_state["current_page"]
+            ),
+        )
+
+        # Update the current page in session state
+        st.session_state["current_page"] = option
+
+        # Dynamically render the selected page
+        if option == "View Employees":
+            view_employees()
+        elif option == "Sign Employee Into Course":
+            sign_employee_into_course()
+        elif option == "View Employee History":
+            view_employee_history()
+        elif option == "View Course Attendance":
+            view_course_attendance()
+
 
 if __name__ == "__main__":
-
-    print("Debug: Starting app")  # Debugging log
     main()
