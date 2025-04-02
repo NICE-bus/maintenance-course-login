@@ -198,17 +198,30 @@ def sign_employee_into_course():
 
     # Dropdowns for employee and course selection
     employee_selection = st.selectbox(
-        "Select Employee",
-        [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
+        "Employee",
+        [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
     )
+    # Check if a valid employee is selected
+    if employee_selection != "Please select an employee":
+        # Proceed with the logic for the selected employee
+        employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
+        print(f"Debug: Selected Employee ID - {employee_id}")  # Debugging log
+    
+    # Dropdown for course selection
     course_selection = st.selectbox(
-        "Select Course",
-        [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
+        "Course",
+        [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
     )
+
+    # Check if a valid course is selected
+    if course_selection != "Please select a course":
+        # Extract course ID
+        course_id = course_selection.split(" - ")[0]  # Extract the course ID
+        print(f"Debug: Selected Course ID - {course_id}")  # Debugging log
 
     # Input fields for date, hours, and comments
     activity_date = st.date_input("Date")
-    hours = st.number_input("Hours", min_value=0.5, step=0.5)
+    hours = st.number_input("Hours", min_value=0.0, step=0.5)
     comments = st.text_area("Comments", placeholder="Enter any additional comments here...")
 
     # Button to sign in the employee
@@ -264,9 +277,15 @@ def view_employee_history():
 
     # Dropdown for employee selection
     employee_selection = st.selectbox(
-        "Select Employee",
-        [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
+        "Employee",
+        [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
     )
+
+    # Check if a valid employee is selected
+    if employee_selection != "Please select an employee":
+        # Proceed with the logic for the selected employee
+        employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
+        print(f"Debug: Selected Employee ID - {employee_id}")  # Debugging log
 
     # Input fields for date range
     start_date = st.date_input("Start Date")
@@ -364,9 +383,17 @@ def view_course_attendance():
         print(f"Error: Failed to fetch courses - {e}")  # Debugging log
         courses = []
 
-    # Create a dropdown for course selection
-    course_options = {course["EAT_ActivityType"]: course["ID"] for course in courses}
-    selected_course = st.selectbox("Select Course", options=list(course_options.keys()))
+    # Dropdown for course selection
+    course_selection = st.selectbox(
+        "Course",
+        [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
+    )
+
+    # Check if a valid course is selected
+    if course_selection != "Please select a course":
+        # Extract course ID
+        course_id = course_selection.split(" - ")[0]  # Extract the course ID
+        print(f"Debug: Selected Course ID - {course_id}")  # Debugging log
 
     # Input for date
     date = st.date_input("Date")
@@ -419,6 +446,8 @@ def login():
     """
     Displays a login page and authenticates the user.
     """
+    # The above code is using the Streamlit library in Python to create a title "Login" for a web
+    # application or dashboard.
     st.title("Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
