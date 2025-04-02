@@ -506,8 +506,10 @@ def main():
             ),
         )
 
-        # Update the current page in session state
-        st.session_state["current_page"] = option
+        # Check if the selected page has changed
+        if option != st.session_state["current_page"]:
+            st.session_state["current_page"] = option
+            st.rerun()  # Force a rerun to load the selected page
 
         # Dynamically render the selected page
         if option == "View Employees":
@@ -518,7 +520,6 @@ def main():
             view_employee_history()
         elif option == "View Course Attendance":
             view_course_attendance()
-
 
 if __name__ == "__main__":
     main()
