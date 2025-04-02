@@ -383,27 +383,34 @@ def view_course_attendance():
         print(f"Error: Failed to fetch courses - {e}")  # Debugging log
         courses = []
 
+    # Check if courses are empty
+    if not courses:
+        st.warning("No courses found in the database. Please add courses first.")
+        print("Debug: No courses found in the database.")  # Debugging log
+        return
+
     # Dropdown for course selection
     course_selection = st.selectbox(
         "Select Course",
-        [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
+        ["Please select a course"] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
     )
+    print(f"Debug: Selected course from dropdown - {course_selection}")  # Debugging log
 
     # Check if a valid course is selected
     if course_selection != "Please select a course":
         # Extract course ID
         course_id = course_selection.split(" - ")[0]  # Extract the course ID
-        print(f"Debug: Selected Course ID - {course_id}")  # Debugging log
+        print(f"Debug: Extracted Course ID - {course_id}")  # Debugging log
+
 
     # Input for date
     date = st.date_input("Date")
+    print(f"Debug: Selected date - {date}")  # Debugging log
 
     if st.button("Fetch Attendance"):
         try:
-            # Get the corresponding course ID for the selected course
-            course_id = course_options[selected_course]
-
             # Query to fetch attendance records
+            print(f"Debug: Fetching attendance for Course ID - {course_id} and Date - {date}")  # Debugging log
             query = (
                 supabase.table("EmployeeActivity")
                 .select("EA_Adm_num, EA_NameF, EA_NameL, EA_ActivityHours, EA_Comments, EA_ActivityDate")
@@ -411,10 +418,12 @@ def view_course_attendance():
                 .eq("EA_ActivityDate", str(date))
                 .execute()
             )
+            print(f"Debug: Query response - {query}")  # Debugging log
 
             # Convert the query result to a DataFrame
             data = query.data
             if data:
+                print(f"Debug: Attendance data fetched - {data}")  # Debugging log
                 df = pd.DataFrame(data)
                 # Rename columns for better readability
                 df = df.rename(
@@ -428,9 +437,10 @@ def view_course_attendance():
                     }
                 )
                 st.dataframe(df)
-                print(f"Debug: Fetched course attendance - {df}")  # Debugging log
+                print(f"Debug: Displaying attendance DataFrame - {df}")  # Debugging log
             else:
                 st.warning("No attendance records found for the selected course and date.")
+                print("Debug: No attendance records found.")  # Debugging log
         except Exception as e:
             st.error("Failed to fetch course attendance")
             print(f"Error: Failed to fetch course attendance - {e}")  # Debugging log
