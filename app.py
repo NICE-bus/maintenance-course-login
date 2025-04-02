@@ -198,7 +198,7 @@ def sign_employee_into_course():
 
     # Dropdowns for employee and course selection
     employee_selection = st.selectbox(
-        "Employee",
+        "Select Employee",
         [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
     )
     # Check if a valid employee is selected
@@ -209,7 +209,7 @@ def sign_employee_into_course():
     
     # Dropdown for course selection
     course_selection = st.selectbox(
-        "Course",
+        "Select Course",
         [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
     )
 
@@ -277,7 +277,7 @@ def view_employee_history():
 
     # Dropdown for employee selection
     employee_selection = st.selectbox(
-        "Employee",
+        "Select Employee",
         [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
     )
 
@@ -385,7 +385,7 @@ def view_course_attendance():
 
     # Dropdown for course selection
     course_selection = st.selectbox(
-        "Course",
+        "Select Course",
         [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
     )
 
@@ -434,7 +434,6 @@ def view_course_attendance():
         except Exception as e:
             st.error("Failed to fetch course attendance")
             print(f"Error: Failed to fetch course attendance - {e}")  # Debugging log
-
 
 def hash_password(password):
     """
