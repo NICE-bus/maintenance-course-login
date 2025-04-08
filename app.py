@@ -171,16 +171,16 @@ def view_employees():
                 
 def sign_employee_into_course():
     """
-    Allows the user to sign an employee into a course by selecting an employee, a course, 
-    and specifying the date, hours, and comments for the activity.
+    Allows the user to sign multiple employees into a course by selecting a training code, a course, 
+    and specifying employees, hours, and comments for the activity.
     """
-    st.title("Sign Employee Into Course")
+    st.title("Sign Employees Into Course")
     print("Debug: Entered sign_employee_into_course function")  # Debugging log
 
     # Fetch data
     try:
-        employees = supabase.table("Employees").select("Adm_num, EE_NameF, EE_NameL").execute().data
-        courses = supabase.table("EmployeeActivityType").select("ID, EAT_ActivityType").execute().data
+        employees = supabase.table("Employees").select("Adm_num, EE_NameF, EE_NameL, EE_StatusCode").execute().data
+        courses = supabase.table("EmployeeActivityType").select("ID, EAT_ActivityCode, EAT_ActivityType").execute().data
         print(f"Debug: Fetched employees - {employees}")  # Debugging log
         print(f"Debug: Fetched courses - {courses}")  # Debugging log
     except Exception as e:
@@ -196,255 +196,484 @@ def sign_employee_into_course():
         st.warning("No courses found in the database. Please add courses first.")
         return
 
-    # Dropdowns for employee and course selection
-    employee_selection = st.selectbox(
-        "Select Employee",
-        [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
-    )
-    # Check if a valid employee is selected
-    if employee_selection != "Please select an employee":
-        # Proceed with the logic for the selected employee
-        employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
-        print(f"Debug: Selected Employee ID - {employee_id}")  # Debugging log
-    
-    # Dropdown for course selection
-    course_selection = st.selectbox(
-        "Select Course",
-        [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
-    )
+    # Filter out terminated employees
+    active_employees = [e for e in employees if e["EE_StatusCode"] != "Terminated"]
+    print(f"Debug: Filtered active employees - {active_employees}")  # Debugging log
 
-    # Check if a valid course is selected
-    if course_selection != "Please select a course":
+    # Step 1: Select Training Code
+    training_code_selection = st.selectbox(
+        "Select Training Code",
+        [""] + ["OSHA", "Technical"],
+        format_func=lambda x: "Please select a training code" if x == "" else x,
+    )
+    print(f"Debug: Selected training code - {training_code_selection}")  # Debugging log
+
+    # Map training code to EAT_ActivityCode values
+    training_code_map = {"OSHA": 1, "Technical": 2}
+    selected_training_code = training_code_map.get(training_code_selection)
+
+    # Filter courses based on the selected training code
+    filtered_courses = [
+        c for c in courses if c.get("EAT_ActivityCode") == selected_training_code
+    ] if selected_training_code else []
+    print(f"Debug: Filtered courses - {filtered_courses}")  # Debugging log
+
+    # Step 2: Select Course
+    if selected_training_code:
+        course_selection = st.selectbox(
+            "Select Course",
+            [""] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in filtered_courses],
+            format_func=lambda x: "Please select a course" if x == "" else x,
+        )
+        print(f"Debug: Selected course from dropdown - {course_selection}")  # Debugging log
+
         # Extract course ID
-        course_id = course_selection.split(" - ")[0]  # Extract the course ID
-        print(f"Debug: Selected Course ID - {course_id}")  # Debugging log
+        if course_selection != "":
+            course_id = course_selection.split(" - ")[0]  # Extract the course ID
+            print(f"Debug: Selected Course ID - {course_id}")  # Debugging log
 
-    # Input fields for date, hours, and comments
-    activity_date = st.date_input("Date")
-    hours = st.number_input("Hours", min_value=0.0, step=0.5)
-    comments = st.text_area("Comments", placeholder="Enter any additional comments here...")
-
-    # Button to sign in the employee
-    if st.button("Sign In"):
-        try:
-            # Extract employee details
-            employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
-            employee_name = employee_selection.split(" - ")[1]  # Extract "FirstName LastName"
-            first_name, last_name = employee_name.split(" ", 1)  # Split into first and last name
-
-            # Extract course ID
-            course_id = course_selection.split(" - ")[0]
-
-            # Convert activity_date to string format
-            activity_date_str = activity_date.strftime("%Y-%m-%d")
-
-            # Insert data into the database
-            supabase.table("EmployeeActivity").insert({
-                "EA_Adm_num": employee_id,  # Employee ID
-                "EA_NameF": first_name,  # First Name
-                "EA_NameL": last_name,  # Last Name
-                "EA_Activity": course_id,  # Course ID
-                "EA_ActivityDate": activity_date_str,  # Activity Date
-                "EA_ActivityHours": hours,  # Activity Hours
-                "EA_Comments": comments  # Comments
-            }).execute()
-            st.success("Employee signed into course!")
-            print("Debug: Employee signed into course successfully")  # Debugging log
-        except Exception as e:
-            st.error("Failed to sign employee into course")
-            print(f"Error: Failed to sign employee into course - {e}")  # Debugging log
-
-def view_employee_history():
-    """
-    Displays the course history of a specific employee within a specified date range.
-    """
-    st.title("Employee Course History")
-    print("Debug: Entered view_employee_history function")  # Debugging log
-
-    # Fetch employee data
-    try:
-        employees = supabase.table("Employees").select("Adm_num, EE_NameF, EE_NameL").execute().data
-        print(f"Debug: Fetched employees - {employees}")  # Debugging log
-    except Exception as e:
-        st.error("Failed to fetch employees from the database.")
-        print(f"Error: Failed to fetch employees - {e}")  # Debugging log
-        employees = []
-
-    # Check if employees are empty
-    if not employees:
-        st.warning("No employees found in the database. Please add employees first.")
-        return
-
-    # Dropdown for employee selection
-    employee_selection = st.selectbox(
-        "Select Employee",
-        [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees]
-    )
-
-    # Check if a valid employee is selected
-    if employee_selection != "Please select an employee":
-        # Proceed with the logic for the selected employee
-        employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
-        print(f"Debug: Selected Employee ID - {employee_id}")  # Debugging log
-
-    # Input fields for date range
-    start_date = st.date_input("Start Date")
-    end_date = st.date_input("End Date")
-
-    if st.button("Fetch History"):
-        try:
-            # Extract the selected employee's ID
-            employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
-            print(f"Debug: Selected Employee ID - {employee_id}")  # Debugging log
-
-            # Query to fetch employee history
-            query = (
-                supabase.table("EmployeeActivity")
-                .select(
-                    "EA_Adm_num, EA_NameF, EA_NameL, EA_ActivityDate, EA_ActivityHours, EA_Comments, "
-                    "EmployeeActivityType(EAT_ActivityType)"
-                )
-                .eq("EA_Adm_num", employee_id)
-                .gte("EA_ActivityDate", str(start_date))
-                .lte("EA_ActivityDate", str(end_date))
-                .execute()
+            # Step 3: Sign Employees Into Course
+            employee_selection = st.multiselect(
+                "Select Employees",
+                options=[f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in active_employees],
+                default=[],
             )
 
-            # Convert the query result to a DataFrame
-            data = query.data
-            if data:
-                df = pd.DataFrame(data)
+            # Input field for date
+            activity_date = st.date_input("Date")
 
-                # Extract the "EAT_ActivityType" value from the EmployeeActivityType column
-                if "EmployeeActivityType" in df.columns:
-                    df["Course"] = df["EmployeeActivityType"].apply(
-                        lambda x: x.get("EAT_ActivityType") if isinstance(x, dict) else None
-                    )
-                    df = df.drop(columns=["EmployeeActivityType"])  # Drop the original column
+            # Input field for hours
+            hours = st.number_input("Hours", min_value=0.0, step=0.5)
 
-                # Rename columns for better readability
-                df = df.rename(
-                    columns={
-                        "EA_Adm_num": "Employee ID",
-                        "EA_NameF": "First Name",
-                        "EA_NameL": "Last Name",
-                        "EA_ActivityDate": "Activity Date",
-                        "EA_ActivityHours": "Activity Hours",
-                        "EA_Comments": "Comments",
-                    }
-                )
+            # Input field for comments
+            comments = st.text_area("Comments", placeholder="Enter any additional comments here...")
 
-                # Reorder columns to place "Course" after "Last Name"
-                column_order = [
-                    "Employee ID",
-                    "First Name",
-                    "Last Name",
-                    "Course",  # Move Course here
-                    "Activity Date",
-                    "Activity Hours",
-                    "Comments",
-                ]
-                df = df[column_order]
+            # Button to sign in the employees
+            if st.button("Sign In"):
+                try:
+                    # Convert activity_date to string format
+                    activity_date_str = activity_date.strftime("%Y-%m-%d")
 
-                # Add a totals row
-                totals = {
-                    "Employee ID": "",
-                    "First Name": "",
-                    "Last Name": "",
-                    "Course": f"Total Classes: {len(df)}",  # Count of rows
-                    "Activity Date": "Total Hours -->",
-                    "Activity Hours": df["Activity Hours"].sum(),  # Sum of Activity Hours
-                    "Comments": ""
-                }
-                df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+                    # Loop through selected employees and insert data into the database
+                    for emp in employee_selection:
+                        employee_id = emp.split(" - ")[0]  # Extract Adm_num
+                        employee_name = emp.split(" - ")[1]  # Extract "FirstName LastName"
+                        first_name, last_name = employee_name.split(" ", 1)  # Split into first and last name
 
-                # Display the DataFrame
-                st.dataframe(df)
-                print(f"Debug: Fetched employee history - {df}")  # Debugging log
-            else:
-                st.warning("No records found for the specified criteria.")
+                        # Insert data into the database
+                        supabase.table("EmployeeActivity").insert({
+                            "EA_Adm_num": employee_id,  # Employee ID
+                            "EA_NameF": first_name,  # First Name
+                            "EA_NameL": last_name,  # Last Name
+                            "EA_Activity": course_id,  # Course ID
+                            "EA_ActivityDate": activity_date_str,  # Activity Date
+                            "EA_ActivityHours": hours,  # Activity Hours
+                            "EA_Comments": comments,  # Comments
+                        }).execute()
+
+                    st.success("Employees signed into course!")
+                    print("Debug: Employees signed into course successfully")  # Debugging log
+                except Exception as e:
+                    st.error("Failed to sign employees into course")
+                    print(f"Error: Failed to sign employees into course - {e}")  # Debugging log
+def activity_history():
+    """
+    Displays the Activity History page with options to view Employee Course History and Course Attendance.
+    """
+    st.title("Activity History")
+    print("Debug: Entered activity_history function")  # Debugging log
+
+    # Tabs for Employee Course History and Course Attendance
+    tab1, tab2 = st.tabs(["Employee Course History", "Course Attendance"])
+
+    # Tab 1: Employee Course History
+    with tab1:
+        st.subheader("Employee Course History")
+        print("Debug: Viewing Employee Course History")  # Debugging log
+
+        # Fetch employee data
+        try:
+            employees = supabase.table("Employees").select("Adm_num, EE_NameF, EE_NameL").execute().data
+            print(f"Debug: Fetched employees - {employees}")  # Debugging log
         except Exception as e:
-            st.error("Failed to fetch employee history")
-            print(f"Error: Failed to fetch employee history - {e}")  # Debugging log
-            
-def view_course_attendance():
+            st.error("Failed to fetch employees from the database.")
+            print(f"Error: Failed to fetch employees - {e}")  # Debugging log
+            employees = []
+
+        # Check if employees are empty
+        if not employees:
+            st.warning("No employees found in the database. Please add employees first.")
+        else:
+            # Dropdown for employee selection
+            employee_selection = st.selectbox(
+                "Select Employee",
+                [""] + [f"{e['Adm_num']} - {e['EE_NameF']} {e['EE_NameL']}" for e in employees],
+                format_func=lambda x: "Please select an employee" if x == "" else x,
+            )
+
+            # Check if a valid employee is selected
+            if employee_selection != "":
+                # Extract the selected employee's ID
+                employee_id = employee_selection.split(" - ")[0]  # Extract Adm_num
+                print(f"Debug: Selected Employee ID - {employee_id}")  # Debugging log
+
+                # Query to fetch employee history
+                try:
+                    query = (
+                        supabase.table("EmployeeActivity")
+                        .select(
+                            "EA_Adm_num, EA_NameF, EA_NameL, EA_ActivityDate, EA_ActivityHours, EA_Comments, "
+                            "EmployeeActivityType(EAT_ActivityType)"
+                        )
+                        .eq("EA_Adm_num", employee_id)
+                        .execute()
+                    )
+
+                    # Convert the query result to a DataFrame
+                    data = query.data
+                    if data:
+                        df = pd.DataFrame(data)
+
+                        # Extract the "EAT_ActivityType" value from the EmployeeActivityType column
+                        if "EmployeeActivityType" in df.columns:
+                            df["Course"] = df["EmployeeActivityType"].apply(
+                                lambda x: x.get("EAT_ActivityType") if isinstance(x, dict) else None
+                            )
+                            df = df.drop(columns=["EmployeeActivityType"])  # Drop the original column
+
+                        # Rename columns for better readability
+                        df = df.rename(
+                            columns={
+                                "EA_Adm_num": "Employee ID",
+                                "EA_NameF": "First Name",
+                                "EA_NameL": "Last Name",
+                                "EA_ActivityDate": "Activity Date",
+                                "EA_ActivityHours": "Activity Hours",
+                                "EA_Comments": "Comments",
+                            }
+                        )
+
+                        # Reorder columns to place "Course" after "Last Name"
+                        column_order = [
+                            "Employee ID",
+                            "First Name",
+                            "Last Name",
+                            "Course",
+                            "Activity Date",
+                            "Activity Hours",
+                            "Comments",
+                        ]
+                        df = df[column_order]
+
+                        # Add a totals row
+                        totals = {
+                            "Employee ID": "",
+                            "First Name": "",
+                            "Last Name": "",
+                            "Course": f"Total Classes: {len(df)}",
+                            "Activity Date": "Total Hours -->",
+                            "Activity Hours": df["Activity Hours"].sum(),
+                            "Comments": "",
+                        }
+                        df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+
+                        # Display the DataFrame
+                        st.dataframe(df)
+                        print(f"Debug: Fetched employee history - {df}")  # Debugging log
+                    else:
+                        st.warning("No records found for the selected employee.")
+                except Exception as e:
+                    st.error("Failed to fetch employee history")
+                    print(f"Error: Failed to fetch employee history - {e}")  # Debugging log
+
+    # Tab 2: Course Attendance
+    with tab2:
+        st.subheader("Course Attendance")
+        print("Debug: Viewing Course Attendance")  # Debugging log
+
+        # Fetch course data
+        try:
+            courses = supabase.table("EmployeeActivityType").select("ID, EAT_ActivityCode, EAT_ActivityType").execute().data
+            print(f"Debug: Fetched courses - {courses}")  # Debugging log
+        except Exception as e:
+            st.error("Failed to fetch courses from the database.")
+            print(f"Error: Failed to fetch courses - {e}")  # Debugging log
+            courses = []
+
+        # Check if courses are empty
+        if not courses:
+            st.warning("No courses found in the database. Please add courses first.")
+        else:
+            # Dropdown for training code selection
+            training_code_selection = st.selectbox(
+                "Select Training Code",
+                [""] + ["OSHA", "Technical"],
+                format_func=lambda x: "Please select a training code" if x == "" else x,
+            )
+            print(f"Debug: Selected training code - {training_code_selection}")  # Debugging log
+
+            # Map training code to EAT_ActivityCode values
+            training_code_map = {"OSHA": 1, "Technical": 2}
+            selected_training_code = training_code_map.get(training_code_selection)
+
+            # Filter courses based on the selected training code
+            filtered_courses = [
+                c for c in courses if c.get("EAT_ActivityCode") == selected_training_code
+            ] if selected_training_code else []
+            print(f"Debug: Filtered courses - {filtered_courses}")  # Debugging log
+
+            # Show course selection dropdown if a valid training code is selected
+            if selected_training_code:
+                course_selection = st.selectbox(
+                    "Select Course",
+                    [""] + ["All"] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in filtered_courses],
+                    format_func=lambda x: "Please select a course" if x == "" else x,
+                )
+                print(f"Debug: Selected course from dropdown - {course_selection}")  # Debugging log
+
+                # Check if a valid course is selected
+                if course_selection != "":
+                    all_data = []  # List to store all rows
+                    start = 0  # Start index for pagination
+                    batch_size = 1000  # Number of rows to fetch per batch
+
+                    if course_selection == "All":
+                        # Fetch all data for the selected training code
+                        print(f"Debug: Fetching all data for Training Code - {selected_training_code}")  # Debugging log
+
+                        while True:
+                            # Fetch a batch of rows
+                            query = (
+                                supabase.table("EmployeeActivity")
+                                .select("EA_Adm_num, EA_NameF, EA_NameL, EA_ActivityHours, EA_Comments, EA_ActivityDate")
+                                .in_("EA_Activity", [c["ID"] for c in filtered_courses])
+                                .order("EA_ActivityDate", desc=True)
+                                .range(start, start + batch_size - 1)
+                                .execute()
+                            )
+
+                            # Append the fetched data to the list
+                            data = query.data
+                            if not data:
+                                break  # Exit the loop if no more data is returned
+                            all_data.extend(data)
+
+                            # Move to the next batch
+                            start += batch_size
+
+                    else:
+                        # Extract course ID
+                        course_id = course_selection.split(" - ")[0]
+                        print(f"Debug: Extracted Course ID - {course_id}")  # Debugging log
+
+                        while True:
+                            # Fetch a batch of rows for the selected course
+                            query = (
+                                supabase.table("EmployeeActivity")
+                                .select("EA_Adm_num, EA_NameF, EA_NameL, EA_ActivityHours, EA_Comments, EA_ActivityDate")
+                                .eq("EA_Activity", course_id)
+                                .order("EA_ActivityDate", desc=True)
+                                .range(start, start + batch_size - 1)
+                                .execute()
+                            )
+
+                            # Append the fetched data to the list
+                            data = query.data
+                            print(f"Debug: Fetched data batch - {data}")  # Debugging log
+                            if not data:
+                                print("Debug: No more data returned, exiting loop.")  # Debugging log
+                                break  # Exit the loop if no more data is returned
+                            all_data.extend(data)
+
+                            # Move to the next batch
+                            start += batch_size
+
+                    print(f"Debug: Total rows fetched - {len(all_data)}")  # Debugging log
+
+                    # Convert the combined data to a DataFrame
+                    if all_data:
+                        df = pd.DataFrame(all_data)
+
+                        # Rename columns for better readability
+                        df = df.rename(
+                            columns={
+                                "EA_Adm_num": "Employee ID",
+                                "EA_NameF": "First Name",
+                                "EA_NameL": "Last Name",
+                                "EA_ActivityHours": "Hours",
+                                "EA_Comments": "Comments",
+                                "EA_ActivityDate": "Date",
+                            }
+                        )
+
+                        # Combine First Name and Last Name into Full Name
+                        df["Employee Name"] = df["First Name"].str.strip().str.title() + " " + df["Last Name"].str.strip().str.title()
+
+                        # Drop the original First Name and Last Name columns
+                        df = df.drop(columns=["First Name", "Last Name"])
+
+                        # Reorder columns
+                        column_order = ["Employee ID", "Employee Name", "Hours", "Comments", "Date"]
+                        df = df[column_order]
+
+                        # Calculate totals
+                        total_hours = df["Hours"].sum()
+                        total_attendees = len(df)
+
+                        # Add a totals row
+                        totals_row = {
+                            "Employee ID": "",
+                            "Employee Name": "Total Hours -->",
+                            "Hours": total_hours,
+                            "Comments": f"Total Attendees: {total_attendees}",
+                            "Date": "",
+                        }
+                        df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True)
+
+                        # Display the DataFrame
+                        st.dataframe(df)
+                        print(f"Debug: Displaying course attendance DataFrame - {df}")  # Debugging log
+                    else:
+                        st.warning("No records found for the selected course.")
+def course_management():
     """
-    Displays the attendance records for a specific course on a specific date.
+    Displays the Course Management page with options to view, add, and edit courses.
     """
-    st.title("Course Attendance")
-    print("Debug: Entered view_course_attendance function")  # Debugging log
+    st.title("Course Management")
+    print("Debug: Entered course_management function")  # Debugging log
 
     # Fetch course data
-    try:
-        courses = supabase.table("EmployeeActivityType").select("ID, EAT_ActivityType").execute().data
-        print(f"Debug: Fetched courses - {courses}")  # Debugging log
-    except Exception as e:
-        st.error("Failed to fetch courses")
-        print(f"Error: Failed to fetch courses - {e}")  # Debugging log
-        courses = []
+    def fetch_courses():
+        try:
+            response = supabase.table("EmployeeActivityType").select("ID, EAT_ActivityCode, EAT_ActivityType").execute()
+            courses = pd.DataFrame(response.data)
+            print(f"Debug: Fetched courses data - {courses}")  # Debugging log
 
-    # Check if courses are empty
-    if not courses:
-        st.warning("No courses found in the database. Please add courses first.")
-        print("Debug: No courses found in the database.")  # Debugging log
+            # Rename columns for better readability
+            courses = courses.rename(
+                columns={
+                    "ID": "Course ID",
+                    "EAT_ActivityCode": "Training Code",
+                    "EAT_ActivityType": "Course Name",
+                }
+            )
+
+            # Map Training Code values to their corresponding labels
+            training_code_map = {1: "OSHA", 2: "Technical"}
+            courses["Training Code"] = courses["Training Code"].map(training_code_map)
+
+            print(f"Debug: Renamed courses columns - {courses.columns}")  # Debugging log
+            print(f"Debug: Updated Training Code values - {courses['Training Code']}")  # Debugging log
+
+            return courses
+
+        except Exception as e:
+            print(f"Error: Failed to fetch courses data - {e}")  # Debugging log
+            return pd.DataFrame()
+
+    # Fetch and display the courses table
+    courses = fetch_courses()
+    if courses.empty:
+        st.warning("No courses found in the database.")
         return
 
-    # Dropdown for course selection
-    course_selection = st.selectbox(
-        "Select Course",
-        ["Please select a course"] + [f"{c['ID']} - {c['EAT_ActivityType']}" for c in courses]
-    )
-    print(f"Debug: Selected course from dropdown - {course_selection}")  # Debugging log
+    # Use a placeholder to allow dynamic updates to the table
+    table_placeholder = st.empty()
+    with table_placeholder.container():
+        st.subheader("Courses Table")
+        st.dataframe(courses)
 
-    # Check if a valid course is selected
-    if course_selection != "Please select a course":
-        # Extract course ID
-        course_id = course_selection.split(" - ")[0]  # Extract the course ID
-        print(f"Debug: Extracted Course ID - {course_id}")  # Debugging log
+    # Add New Course
+    st.subheader("Add New Course")
+    with st.form("add_course"):
+        course_name = st.text_input("Course Name")
+        training_code = st.selectbox("Training Code", ["OSHA", "Technical"])
 
+        if st.form_submit_button("Add Course"):
+            try:
+                # Map training code to its corresponding value
+                training_code_map = {"OSHA": 1, "Technical": 2}
+                training_code_value = training_code_map.get(training_code)
 
-    # Input for date
-    date = st.date_input("Date")
-    print(f"Debug: Selected date - {date}")  # Debugging log
+                # Fetch the current maximum Course ID
+                response = supabase.table("EmployeeActivityType").select("ID").order("ID", desc=True).limit(1).execute()
+                max_id = response.data[0]["ID"] if response.data else 0
+                next_id = max_id + 1
+                print(f"Debug: Calculated next Course ID - {next_id}")  # Debugging log
 
-    if st.button("Fetch Attendance"):
-        try:
-            # Query to fetch attendance records
-            print(f"Debug: Fetching attendance for Course ID - {course_id} and Date - {date}")  # Debugging log
-            query = (
-                supabase.table("EmployeeActivity")
-                .select("EA_Adm_num, EA_NameF, EA_NameL, EA_ActivityHours, EA_Comments, EA_ActivityDate")
-                .eq("EA_Activity", course_id)
-                .eq("EA_ActivityDate", str(date))
-                .execute()
-            )
-            print(f"Debug: Query response - {query}")  # Debugging log
-
-            # Convert the query result to a DataFrame
-            data = query.data
-            if data:
-                print(f"Debug: Attendance data fetched - {data}")  # Debugging log
-                df = pd.DataFrame(data)
-                # Rename columns for better readability
-                df = df.rename(
-                    columns={
-                        "EA_Adm_num": "Employee ID",
-                        "EA_NameF": "First Name",
-                        "EA_NameL": "Last Name",
-                        "EA_ActivityHours": "Hours",
-                        "EA_Comments": "Comments",
-                        "EA_ActivityDate": "Date",
+                # Insert new course into the database
+                supabase.table("EmployeeActivityType").insert(
+                    {
+                        "ID": next_id,  # Set the next Course ID
+                        "EAT_ActivityCode": training_code_value,
+                        "EAT_ActivityType": course_name,
                     }
-                )
-                st.dataframe(df)
-                print(f"Debug: Displaying attendance DataFrame - {df}")  # Debugging log
-            else:
-                st.warning("No attendance records found for the selected course and date.")
-                print("Debug: No attendance records found.")  # Debugging log
-        except Exception as e:
-            st.error("Failed to fetch course attendance")
-            print(f"Error: Failed to fetch course attendance - {e}")  # Debugging log
+                ).execute()
+                st.success("Course added successfully!")
+                print("Debug: Course added successfully")  # Debugging log
 
+                # Refresh the courses table
+                courses = fetch_courses()
+                with table_placeholder.container():
+                    st.subheader("Courses Table")
+                    st.dataframe(courses)
+            except Exception as e:
+                st.error("Failed to add course")
+                print(f"Error: Failed to add course - {e}")  # Debugging log
+
+    # Edit Existing Course
+    st.subheader("Edit Existing Course")
+    # Update the dropdown to include Course ID and Course Name
+    course_ids = [f"{row['Course ID']} - {row['Course Name']}" for _, row in courses.iterrows()]
+    selected_course = st.selectbox("Select Course to Edit", [""] + course_ids)
+    if selected_course:
+        # Extract the Course ID from the selected value
+        selected_course_id = int(selected_course.split(" - ")[0].strip())
+        print(f"Debug: Selected Course ID - {selected_course_id}")  # Debugging log
+
+        # Filter the DataFrame for the selected course
+        filtered_course = courses[courses["Course ID"] == selected_course_id]
+
+        if filtered_course.empty:
+            st.error("No matching course found. Please check the Course ID.")
+            print("Error: No matching course found.")  # Debugging log
+            return
+
+        # Pre-fill the form with the selected course's data
+        selected_course_data = filtered_course.iloc[0]
+        course_name = st.text_input("Course Name", value=selected_course_data["Course Name"])
+        training_code = st.selectbox(
+            "Training Code",
+            options=["OSHA", "Technical"],
+            index=0 if selected_course_data["Training Code"] == 1 else 1,
+        )
+
+        if st.button("Update Course"):
+            try:
+                # Map training code to its corresponding value
+                training_code_map = {"OSHA": 1, "Technical": 2}
+                training_code_value = training_code_map.get(training_code)
+
+                # Prepare the data for update
+                update_data = {
+                    "EAT_ActivityType": course_name,
+                    "EAT_ActivityCode": training_code_value,
+                }
+
+                # Update the course record in the database
+                supabase.table("EmployeeActivityType").update(update_data).eq("ID", selected_course_id).execute()
+                st.success("Course updated successfully!")
+                print("Debug: Course updated successfully")  # Debugging log
+
+                # Refresh the courses table
+                courses = fetch_courses()
+                with table_placeholder.container():
+                    st.subheader("Courses Table")
+                    st.dataframe(courses)
+            except Exception as e:
+                st.error("Failed to update course")
+                print(f"Error: Failed to update course - {e}")  # Debugging log
+                
 def hash_password(password):
     """
     Hashes a password using SHA-256.
@@ -493,7 +722,11 @@ def main():
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
     if "current_page" not in st.session_state:
-        st.session_state["current_page"] = "Login"
+        st.session_state["current_page"] = "Course Sign In"  # Updated default page name
+
+    # Fix for old session state values
+    if st.session_state["current_page"] == "Sign Employee Into Course":
+        st.session_state["current_page"] = "Course Sign In"
 
     # Check if the user is authenticated
     if not st.session_state["authenticated"]:
@@ -505,14 +738,17 @@ def main():
         option = st.sidebar.selectbox(
             "Choose a page",
             [
-                "View Employees",
-                "Sign Employee Into Course",
-                "View Employee History",
-                "View Course Attendance",
+                "Course Sign In",
+                "View Activity History",
+                "Employee Management",
+                "Course Management",
             ],
-            index=["View Employees", "Sign Employee Into Course", "View Employee History", "View Course Attendance"].index(
-                st.session_state["current_page"]
-            ),
+            index=[
+                "Course Sign In",
+                "View Activity History",
+                "Employee Management",
+                "Course Management",
+            ].index(st.session_state["current_page"]),
         )
 
         # Check if the selected page has changed
@@ -521,14 +757,14 @@ def main():
             st.rerun()  # Force a rerun to load the selected page
 
         # Dynamically render the selected page
-        if option == "View Employees":
-            view_employees()
-        elif option == "Sign Employee Into Course":
+        if option == "Course Sign In":
             sign_employee_into_course()
-        elif option == "View Employee History":
-            view_employee_history()
-        elif option == "View Course Attendance":
-            view_course_attendance()
-
+        elif option == "View Activity History":
+            activity_history()
+        elif option == "Employee Management":
+            view_employees()
+        elif option == "Course Management":
+            course_management()
+            
 if __name__ == "__main__":
     main()
