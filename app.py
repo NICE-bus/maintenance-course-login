@@ -58,7 +58,7 @@ def view_employees():
     table_placeholder = st.empty()
     with table_placeholder.container():
         st.subheader("Employees Table")
-        st.dataframe(employees)
+        st.dataframe(employees, hide_index=True)
 
     # Add new employee
     st.subheader("Add New Employee")
@@ -378,7 +378,7 @@ def activity_history():
                         df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
 
                         # Display the DataFrame
-                        st.dataframe(df)
+                        st.dataframe(df, hide_index=True)
                         print(f"Debug: Fetched employee history - {df}")  # Debugging log
                     else:
                         st.warning("No records found for the selected employee.")
@@ -531,7 +531,7 @@ def activity_history():
                         df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True)
 
                         # Display the DataFrame
-                        st.dataframe(df)
+                        st.dataframe(df, hide_index=True)
                         print(f"Debug: Displaying course attendance DataFrame - {df}")  # Debugging log
                     else:
                         st.warning("No records found for the selected course.")
@@ -581,7 +581,7 @@ def course_management():
     table_placeholder = st.empty()
     with table_placeholder.container():
         st.subheader("Courses Table")
-        st.dataframe(courses)
+        st.dataframe(courses, hide_index=True)
 
     # Add New Course
     st.subheader("Add New Course")
