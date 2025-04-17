@@ -587,7 +587,7 @@ def course_management():
     st.subheader("Add New Course")
     with st.form("add_course"):
         course_name = st.text_input("Course Name")
-        training_code = st.selectbox("Training Code", ["OSHA", "Technical"])
+        training_code = st.selectbox("Training Code", ["Select Training Code","OSHA", "Technical"])
 
         if st.form_submit_button("Add Course"):
             try:
