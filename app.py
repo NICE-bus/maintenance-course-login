@@ -520,9 +520,17 @@ def activity_history():
                         total_hours = df["Hours"].sum()
                         total_attendees = len(df)
 
-                        # Add a totals row
+                        # Add a totals row with dynamic first column
+                        if course_selection == "All":
+                            first_col_value = f"Total {training_code_selection} courses"
+                        else:
+                            if " - " in course_selection:
+                                first_col_value = f'{training_code_selection} - {course_selection.split(" - ")[1]}'
+                            else:
+                                first_col_value = f'{training_code_selection} - {course_selection}'
+
                         totals_row = {
-                            "Employee ID": "",
+                            "Employee ID": first_col_value,
                             "Employee Name": "Total Hours -->",
                             "Hours": total_hours,
                             "Comments": f"Total Attendees: {total_attendees}",
