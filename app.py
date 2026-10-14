@@ -6,8 +6,6 @@ import hashlib
 # Load credentials from Streamlit secrets
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-print(f"Debug: SUPABASE_URL - {SUPABASE_URL}")  # Debugging log
-print(f"Debug: SUPABASE_KEY - {SUPABASE_KEY[:5]}...")  # Masked for security
 
 # Connect to Supabase
 try:
